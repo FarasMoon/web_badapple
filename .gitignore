@@ -1,0 +1,10 @@
+server.py
+start.bat
+start_server.bat
+start_server2.bat
+Caddyfile
+Caddy*
+caddy*
+cloudflared*
+*.md
+.trae/
