@@ -8,6 +8,7 @@
   var btnSwitch = document.getElementById('btn-switch');
   var btnSwitch2 = document.getElementById('btn-switch2');
   var btnReset = document.getElementById('btn-reset');
+  var btnBlock = document.getElementById('btn-block');
   var fileInput = document.getElementById('file-input');
   var fileInput2 = document.getElementById('file-input2');
   var statusEl = document.getElementById('status');
@@ -39,11 +40,15 @@
   var videoDuration = 0;
   var hintTimer = null;
 
+  var blockMode = false;
+  var BLOCK_SIZE = 4;
+
   function setStatus(msg) {
     statusEl.textContent = msg;
   }
 
-  function showHint() {
+  function showHint(msg) {
+    hintEl.textContent = msg;
     hintEl.classList.add('show');
     clearTimeout(hintTimer);
     hintTimer = setTimeout(function() { hintEl.classList.remove('show'); }, 2000);
@@ -81,8 +86,79 @@
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   }
 
+  function drawTile(c, r, img, cellW, cellH, startX, startY) {
+    var x = startX + (c + 0.5) * cellW;
+    var y = startY + (r + 0.5) * cellH;
+    var s = cellW;
+    ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
+  }
+
+  function drawBlock(c, r, bw, bh, img, cellW, cellH, startX, startY) {
+    var x = startX + (c + bw / 2) * cellW;
+    var y = startY + (r + bh / 2) * cellH;
+    var w = bw * cellW;
+    var h = bh * cellH;
+    ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+  }
+
+  function isUniform(buf, cols, rows, c0, r0, c1, r1, threshold) {
+    if (threshold === undefined) threshold = 128;
+    var first = buf[r0 * cols + c0];
+    var type = first > threshold;
+    for (var r = r0; r < r1; r++) {
+      for (var c = c0; c < c1; c++) {
+        if ((buf[r * cols + c] > threshold) !== type) return false;
+      }
+    }
+    return true;
+  }
+
+  function drawBlocks(buf, cols, rows, dw, dh) {
+    var bgColor = bgMode === 'dark' ? '#000' : '#fff';
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, W, H);
+
+    var startX = (W - dw) / 2;
+    var startY = (H - dh) / 2;
+    var cellW = dw / cols;
+    var cellH = dh / rows;
+
+    var bs = BLOCK_SIZE;
+    var r = 0;
+    while (r < rows) {
+      var c = 0;
+      while (c < cols) {
+        var rr = Math.min(bs, rows - r);
+        var cc = Math.min(bs, cols - c);
+
+        if (isUniform(buf, cols, rows, c, r, c + cc, r + rr, 128)) {
+          var val = buf[r * cols + c];
+          if (val > 128 && imgWhiteReady) {
+            drawBlock(c, r, cc, rr, imgWhite, cellW, cellH, startX, startY);
+          } else if (val <= 128 && imgBlackReady) {
+            drawBlock(c, r, cc, rr, imgBlack, cellW, cellH, startX, startY);
+          }
+        } else {
+          for (var i = r; i < r + rr; i++) {
+            for (var j = c; j < c + cc; j++) {
+              var v = buf[i * cols + j];
+              if (v > 128 && imgWhiteReady) {
+                drawTile(j, i, imgWhite, cellW, cellH, startX, startY);
+              } else if (v <= 128 && imgBlackReady) {
+                drawTile(j, i, imgBlack, cellW, cellH, startX, startY);
+              }
+            }
+          }
+        }
+        c += cc;
+      }
+      r += rr;
+    }
+  }
+
   function drawTiles(buf, cols, rows, dw, dh) {
-    var ts = dw / cols;
     var bgColor = bgMode === 'dark' ? '#000' : '#fff';
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -98,15 +174,19 @@
       for (var c = 0; c < cols; c++) {
         var val = buf[r * cols + c];
         if (val > 128 && imgWhiteReady) {
-          var x = startX + (c + 0.5) * cellW;
-          var y = startY + (r + 0.5) * cellH;
-          ctx.drawImage(imgWhite, x - ts / 2, y - ts / 2, ts, ts);
+          drawTile(c, r, imgWhite, cellW, cellH, startX, startY);
         } else if (val <= 128 && imgBlackReady) {
-          var x2 = startX + (c + 0.5) * cellW;
-          var y2 = startY + (r + 0.5) * cellH;
-          ctx.drawImage(imgBlack, x2 - ts / 2, y2 - ts / 2, ts, ts);
+          drawTile(c, r, imgBlack, cellW, cellH, startX, startY);
         }
       }
+    }
+  }
+
+  function doDraw(buf, cols, rows, dw, dh) {
+    if (blockMode) {
+      drawBlocks(buf, cols, rows, dw, dh);
+    } else {
+      drawTiles(buf, cols, rows, dw, dh);
     }
   }
 
@@ -142,7 +222,7 @@
 
     if (!buf) return;
 
-    drawTiles(buf, cacheSampleW, cacheRows, dw, dh);
+    doDraw(buf, cacheSampleW, cacheRows, dw, dh);
   }
 
   function renderFromCache() {
@@ -159,7 +239,7 @@
     if (idx >= total) idx = total - 1;
     if (idx < 0) idx = 0;
 
-    drawTiles(frameCache[idx], cacheSampleW, cacheRows, dw, dh);
+    doDraw(frameCache[idx], cacheSampleW, cacheRows, dw, dh);
   }
 
   function render() {
@@ -174,6 +254,23 @@
     if (playing) {
       render();
       requestAnimationFrame(animate);
+    }
+  }
+
+  function resetCache() {
+    frameCache = null;
+    cacheReady = false;
+    recording = false;
+  }
+
+  function updateBlockUI() {
+    if (blockMode) {
+      btnBlock.classList.add('on');
+      btnBlock.textContent = '整图模式 - ' + BLOCK_SIZE + 'x' + BLOCK_SIZE;
+      setStatus('整图模式 ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
+    } else {
+      btnBlock.classList.remove('on');
+      btnBlock.textContent = '整图模式';
     }
   }
 
@@ -192,10 +289,24 @@
     if (sampleH < 1) sampleH = 1;
 
     buildCache(SAMPLE_W, sampleH);
+    updateBlockUI();
 
     video.currentTime = 0;
     video.play().catch(function(){});
     animate();
+  });
+
+  btnBlock.addEventListener('click', function() {
+    blockMode = !blockMode;
+    resetCache();
+
+    updateBlockUI();
+
+    if (blockMode) {
+      showHint('滚轮调节块大小');
+    } else {
+      showHint('滚轮调节分辨率');
+    }
   });
 
   btnSwitch.addEventListener('click', function() {
@@ -214,10 +325,11 @@
 
     SAMPLE_W = 40;
     sampleH = 0;
-    frameCache = null;
-    cacheReady = false;
-    recording = false;
-    lastVideoT = -1;
+    BLOCK_SIZE = 4;
+    blockMode = false;
+    btnBlock.classList.remove('on');
+    btnBlock.textContent = '整图模式';
+    resetCache();
 
     imgWhite.src = '1.jpg';
     imgWhiteReady = false;
@@ -244,12 +356,7 @@
       targetImg.src = ev.target.result;
     };
     reader.readAsDataURL(file);
-
-    if (cacheReady) {
-      frameCache = null;
-      cacheReady = false;
-      recording = false;
-    }
+    resetCache();
   }
 
   fileInput.addEventListener('change', function(e) {
@@ -274,19 +381,28 @@
     e.preventDefault();
     if (!playing) return;
 
-    var d = e.deltaY > 0 ? -4 : 4;
-    SAMPLE_W = Math.max(8, Math.min(120, SAMPLE_W + d));
+    if (blockMode) {
+      var sizes = [2, 4, 8, 16];
+      var idx = sizes.indexOf(BLOCK_SIZE);
+      var d = e.deltaY > 0 ? 1 : -1;
+      idx = Math.max(0, Math.min(sizes.length - 1, idx + d));
+      BLOCK_SIZE = sizes[idx];
+      resetCache();
+      showHint('块大小: ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
+      setStatus('整图模式 ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
+      btnBlock.textContent = '整图模式 - ' + BLOCK_SIZE + 'x' + BLOCK_SIZE;
+    } else {
+      var delta = e.deltaY > 0 ? -4 : 4;
+      SAMPLE_W = Math.max(8, Math.min(120, SAMPLE_W + delta));
+      resetCache();
 
-    frameCache = null;
-    cacheReady = false;
-    recording = false;
+      sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
+      if (sampleH < 1) sampleH = 1;
+      buildCache(SAMPLE_W, sampleH);
 
-    sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
-    if (sampleH < 1) sampleH = 1;
-    buildCache(SAMPLE_W, sampleH);
-
-    showHint();
-    setStatus('分辨率 ' + SAMPLE_W);
+      showHint('分辨率 ' + SAMPLE_W);
+      setStatus('分辨率 ' + SAMPLE_W);
+    }
   }, { passive: false });
 
   imgWhite.onload = function() {
