@@ -302,11 +302,16 @@
   }
 
   btnPlay.addEventListener('click', function() {
-    if (!imgWhiteReady || !videoReady) {
-      if (!imgWhiteReady) setStatus('白区图片还没加载好');
-      else setStatus('视频还没加载好');
+    if (!imgWhiteReady) {
+      setStatus('白区图片还没加载好');
       return;
     }
+    if (video.readyState < 1) {
+      video.load();
+      setStatus('视频加载中，请稍候再试...');
+      return;
+    }
+    if (!videoReady) videoReady = true;
 
     playing = true;
     overlay.classList.add('hidden');
@@ -554,7 +559,12 @@
   video.addEventListener('loadedmetadata', function() {
     videoReady = true;
     videoDuration = video.duration;
-    setStatus('视频就绪 - 请上传图片');
+    if (!imgWhiteReady) setStatus('视频就绪 - 请上传图片');
+    else setStatus('就绪 - 点击开始播放');
+  });
+
+  video.addEventListener('error', function() {
+    setStatus('视频加载失败，请刷新页面');
   });
 
   video.addEventListener('ended', function() {
