@@ -403,6 +403,17 @@
     if (imgWhiteReady) setStatus('就绪 - 点击开始播放');
     else setStatus('视频加载完成，等待图片...');
   });
+
+  video.addEventListener('ended', function() {
+    playing = false;
+    overlay.classList.remove('hidden');
+    document.body.classList.remove('light');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    setStatus('播放完毕 - 点击重新播放');
+  });
+
   video.load();
 
   window.addEventListener('resize', resize);
