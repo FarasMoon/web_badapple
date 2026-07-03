@@ -86,10 +86,13 @@ body.light .hint { color: #999; }
   background: rgba(0,0,0,0.85);
   display: none; flex-direction: column; align-items: center;
   justify-content: center; gap: 16px;
+  overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 20px;
 }
 .crop-overlay.show { display: flex; }
 .crop-overlay canvas {
-  cursor: grab;
+  cursor: grab; flex-shrink: 0;
+  touch-action: none;
 }
 .crop-overlay canvas:active { cursor: grabbing; }
 .crop-hint {
@@ -98,6 +101,13 @@ body.light .hint { color: #999; }
 }
 .crop-btns { display: flex; gap: 12px; }
 .crop-btns .small-btn { font-size: 14px; padding: 10px 28px; }
+
+@media (max-width: 767px) {
+  .crop-overlay { gap: 12px; padding: 16px; }
+  .crop-hint { font-size: 14px; }
+  .crop-btns .small-btn { font-size: 15px; padding: 12px 32px; }
+  .crop-btns { gap: 16px; }
+}
 
 .progress-bar {
   position: fixed; top: 0; left: 0; right: 0; height: 3px;

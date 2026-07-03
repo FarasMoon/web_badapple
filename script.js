@@ -369,8 +369,9 @@
     reader.onload = function(ev) {
       var srcImg = new Image();
       srcImg.onload = function() {
-        var maxW = window.innerWidth * 0.9;
-        var maxH = window.innerHeight * 0.7;
+        var isMobile = window.innerWidth < 768;
+        var maxW = window.innerWidth * (isMobile ? 0.95 : 0.9);
+        var maxH = window.innerHeight * (isMobile ? 0.5 : 0.7);
         var scale = Math.min(maxW / srcImg.width, maxH / srcImg.height, 1);
         var cw = Math.round(srcImg.width * scale);
         var ch = Math.round(srcImg.height * scale);
