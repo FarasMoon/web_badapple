@@ -491,15 +491,16 @@
 
   canvas.addEventListener('wheel', function(e) {
     e.preventDefault();
-    if (!playing) return;
 
     var delta = e.deltaY > 0 ? -4 : 4;
-    SAMPLE_W = Math.max(8, Math.min(120, SAMPLE_W + delta));
-    resetCache();
+    SAMPLE_W = Math.max(8, Math.min(200, SAMPLE_W + delta));
 
-    sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
-    if (sampleH < 1) sampleH = 1;
-    buildCache(SAMPLE_W, sampleH);
+    if (playing) {
+      resetCache();
+      sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
+      if (sampleH < 1) sampleH = 1;
+      buildCache(SAMPLE_W, sampleH);
+    }
 
     showHint('分辨率 ' + SAMPLE_W);
     setStatus('分辨率 ' + SAMPLE_W);
