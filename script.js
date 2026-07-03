@@ -26,6 +26,7 @@
   var mwUp = document.getElementById('mw-up');
   var mwDown = document.getElementById('mw-down');
   var mwVal = document.getElementById('mw-val');
+  var backBtn = document.getElementById('back-btn');
 
   var imgWhite = new Image();
   var imgBlack = new Image();
@@ -309,6 +310,7 @@
 
     playing = true;
     overlay.classList.add('hidden');
+    backBtn.classList.add('show');
     videoDuration = video.duration;
 
     sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
@@ -345,8 +347,8 @@
     playing = false;
     video.pause();
     overlay.classList.remove('hidden');
+    backBtn.classList.remove('show');
     document.body.classList.remove('light');
-
     SAMPLE_W = 40;
     sampleH = 0;
     blockMode = false;
@@ -558,6 +560,7 @@
   video.addEventListener('ended', function() {
     playing = false;
     overlay.classList.remove('hidden');
+    backBtn.classList.remove('show');
     document.body.classList.remove('light');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#000';
@@ -571,12 +574,23 @@
 
   window.addEventListener('resize', resize);
 
+  backBtn.addEventListener('click', function() {
+    playing = false;
+    video.pause();
+    overlay.classList.remove('hidden');
+    backBtn.classList.remove('show');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    setStatus('已退出 - 点击开始播放');
+  });
+
   document.addEventListener('keydown', function(e) {
-    document.body.classList.remove('light');
     if (e.key === 'Escape' && playing) {
       playing = false;
       video.pause();
       overlay.classList.remove('hidden');
+      backBtn.classList.remove('show');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
