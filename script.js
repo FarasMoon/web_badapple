@@ -19,6 +19,13 @@
   var cropCtx = cropCanvas.getContext('2d');
   var cropCancel = document.getElementById('crop-cancel');
   var cropConfirm = document.getElementById('crop-confirm');
+  var progressBar = document.getElementById('progress-bar');
+  var progressFill = document.getElementById('progress-fill');
+  var mwToggle = document.getElementById('mw-toggle');
+  var mwCtrls = document.getElementById('mw-ctrls');
+  var mwUp = document.getElementById('mw-up');
+  var mwDown = document.getElementById('mw-down');
+  var mwVal = document.getElementById('mw-val');
 
   var imgWhite = new Image();
   var imgBlack = new Image();
@@ -260,6 +267,13 @@
 
   function animate() {
     if (playing) {
+      if (recording && !cacheReady) {
+        progressBar.classList.add('show');
+        var pct = videoDuration > 0 ? Math.min(100, (video.currentTime / videoDuration) * 100) : 0;
+        progressFill.style.width = pct + '%';
+      } else if (cacheReady) {
+        progressBar.classList.remove('show');
+      }
       render();
       requestAnimationFrame(animate);
     }
@@ -269,6 +283,12 @@
     frameCache = null;
     cacheReady = false;
     recording = false;
+    progressBar.classList.remove('show');
+  }
+
+  function updateResUI() {
+    setStatus('分辨率 ' + SAMPLE_W);
+    mwVal.textContent = SAMPLE_W;
   }
 
   function updateBlockUI() {
@@ -499,8 +519,34 @@
     }
 
     showHint('分辨率 ' + SAMPLE_W);
-    setStatus('分辨率 ' + SAMPLE_W);
+    updateResUI();
   }, { passive: false });
+
+  mwToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    mwCtrls.classList.toggle('show');
+  });
+
+  function adjustRes(delta) {
+    SAMPLE_W = Math.max(8, Math.min(200, SAMPLE_W + delta));
+    if (playing) {
+      resetCache();
+      sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
+      if (sampleH < 1) sampleH = 1;
+      buildCache(SAMPLE_W, sampleH);
+    }
+    updateResUI();
+  }
+
+  mwUp.addEventListener('click', function(e) {
+    e.stopPropagation();
+    adjustRes(4);
+  });
+
+  mwDown.addEventListener('click', function(e) {
+    e.stopPropagation();
+    adjustRes(-4);
+  });
 
   video.addEventListener('loadedmetadata', function() {
     videoReady = true;
@@ -519,6 +565,8 @@
   });
 
   video.load();
+
+  updateResUI();
 
   window.addEventListener('resize', resize);
 
