@@ -1,0 +1,82 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+body.light { background: #fff; }
+canvas { display: block; width: 100%; height: 100%; }
+
+.overlay {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 10; display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+}
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #fff;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+body.light .title { color: #000; }
+.btn-row { display: flex; gap: 10px; }
+.play-btn {
+  padding: 14px 40px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  background: #000;
+  color: #fff;
+  font-size: 17px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: all 0.35s;
+}
+.play-btn:hover {
+  border-color: rgba(255,255,255,0.4);
+  background: #111;
+}
+body.light .play-btn {
+  border-color: rgba(0,0,0,0.15);
+  background: #fff;
+  color: #000;
+}
+body.light .play-btn:hover {
+  border-color: rgba(0,0,0,0.3);
+  background: #eee;
+}
+.overlay.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.9); transition: all 0.4s; }
+
+.small-btn {
+  padding: 7px 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  background: #000;
+  color: #aaa;
+  font-size: 12px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.small-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+.small-btn.on { color: #fff; border-color: rgba(255,255,255,0.3); background: #222; }
+body.light .small-btn {
+  border-color: rgba(0,0,0,0.12);
+  background: #fff;
+  color: #666;
+}
+body.light .small-btn:hover { color: #000; border-color: rgba(0,0,0,0.25); }
+body.light .small-btn.on { color: #000; border-color: rgba(0,0,0,0.25); background: #eee; }
+
+.status {
+  font-size: 12px; color: #888;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  min-height: 16px;
+}
+body.light .status { color: #666; }
+.hint {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 5; font-size: 11px; color: #666;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  opacity: 0; transition: opacity 0.6s;
+}
+body.light .hint { color: #999; }
+.hint.show { opacity: 1; }
