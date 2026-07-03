@@ -89,7 +89,6 @@ body.light .hint { color: #999; }
 }
 .crop-overlay.show { display: flex; }
 .crop-overlay canvas {
-  max-width: 90vw; max-height: 70vh;
   cursor: grab;
 }
 .crop-overlay canvas:active { cursor: grabbing; }

@@ -360,6 +360,8 @@
         var ch = Math.round(srcImg.height * scale);
         cropCanvas.width = cw;
         cropCanvas.height = ch;
+        cropCanvas.style.width = cw + 'px';
+        cropCanvas.style.height = ch + 'px';
         cropCtx.drawImage(srcImg, 0, 0, cw, ch);
 
         var sqSize = Math.min(cw, ch);
