@@ -128,35 +128,35 @@
 
         var val = at(r, c);
         var isWhite = val > 128;
-        var maxW = 1;
-        while (c + maxW < cols && !visited[r * cols + c + maxW] && (at(r, c + maxW) > 128) === isWhite) {
-          maxW++;
-        }
 
-        var maxH = 1;
-        for (var rr = r + 1; rr < rows; rr++) {
-          var canExpand = true;
-          for (var cc = c; cc < c + maxW; cc++) {
-            if (visited[rr * cols + cc] || (at(rr, cc) > 128) !== isWhite) {
-              canExpand = false;
-              break;
+        var maxDim = Math.min(cols - c, rows - r);
+        var size = 1;
+        while (size < maxDim) {
+          var ok = true;
+          for (var i = r; i <= r + size; i++) {
+            for (var j = c; j <= c + size; j++) {
+              if (visited[i * cols + j] || (at(i, j) > 128) !== isWhite) {
+                ok = false;
+                break;
+              }
             }
+            if (!ok) break;
           }
-          if (!canExpand) break;
-          maxH++;
+          if (!ok) break;
+          size++;
         }
 
         var img = null;
         if (isWhite && imgWhiteReady) img = imgWhite;
         else if (!isWhite && imgBlackReady) img = imgBlack;
 
-        if (img && (maxW > 1 || maxH > 1)) {
-          drawBlock(c, r, maxW, maxH, img, cellW, cellH, startX, startY);
+        if (img && size > 1) {
+          drawBlock(c, r, size, size, img, cellW, cellH, startX, startY);
         } else if (img) {
           drawTile(c, r, img, cellW, cellH, startX, startY);
         }
 
-        mark(r, c, r + maxH, c + maxW);
+        mark(r, c, r + size, c + size);
       }
     }
   }
