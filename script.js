@@ -41,6 +41,7 @@
   var hintTimer = null;
 
   var blockMode = false;
+  var prevBlocks = null;
 
   function setStatus(msg) {
     statusEl.textContent = msg;
@@ -122,6 +123,34 @@
           visited[i * cols + j] = 1;
     }
 
+    function blockUniform(r0, c0, siz, isWhite) {
+      for (var i = r0; i < r0 + siz; i++)
+        for (var j = c0; j < c0 + siz; j++)
+          if (visited[i * cols + j] || (at(i, j) > 128) !== isWhite)
+            return false;
+      return true;
+    }
+
+    var newBlocks = [];
+    var prev = prevBlocks;
+    if (prev && prev.cols === cols && prev.rows === rows) {
+      for (var k = 0; k < prev.list.length; k++) {
+        var b = prev.list[k];
+        if (blockUniform(b.r, b.c, b.s, b.isWhite)) {
+          var img = b.isWhite ? (imgWhiteReady ? imgWhite : null) : (imgBlackReady ? imgBlack : null);
+          if (img) {
+            if (b.s > 1) {
+              drawBlock(b.c, b.r, b.s, b.s, img, cellW, cellH, startX, startY);
+            } else {
+              drawTile(b.c, b.r, img, cellW, cellH, startX, startY);
+            }
+            mark(b.r, b.c, b.r + b.s, b.c + b.s);
+            newBlocks.push(b);
+          }
+        }
+      }
+    }
+
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
         if (visited[r * cols + c]) continue;
@@ -132,17 +161,7 @@
         var maxDim = Math.min(cols - c, rows - r);
         var size = 1;
         while (size < maxDim) {
-          var ok = true;
-          for (var i = r; i <= r + size; i++) {
-            for (var j = c; j <= c + size; j++) {
-              if (visited[i * cols + j] || (at(i, j) > 128) !== isWhite) {
-                ok = false;
-                break;
-              }
-            }
-            if (!ok) break;
-          }
-          if (!ok) break;
+          if (!blockUniform(r, c, size + 1, isWhite)) break;
           size++;
         }
 
@@ -157,8 +176,11 @@
         }
 
         mark(r, c, r + size, c + size);
+        newBlocks.push({ r: r, c: c, s: size, isWhite: isWhite });
       }
     }
+
+    prevBlocks = { cols: cols, rows: rows, list: newBlocks };
   }
 
   function drawTiles(buf, cols, rows, dw, dh) {
@@ -264,6 +286,7 @@
     frameCache = null;
     cacheReady = false;
     recording = false;
+    prevBlocks = null;
   }
 
   function updateBlockUI() {
