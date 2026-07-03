@@ -563,6 +563,14 @@
     else setStatus('就绪 - 点击开始播放');
   });
 
+  video.addEventListener('canplay', function() {
+    if (!videoReady) {
+      videoReady = true;
+      videoDuration = video.duration;
+    }
+    if (!imgWhiteReady) setStatus('视频已缓存 - 请上传图片');
+  });
+
   video.addEventListener('error', function() {
     setStatus('视频加载失败，请刷新页面');
   });
@@ -579,6 +587,7 @@
   });
 
   video.load();
+  setStatus('视频加载中...');
 
   updateResUI();
 
