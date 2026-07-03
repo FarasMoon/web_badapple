@@ -333,12 +333,8 @@
     btnBlock.classList.remove('on');
     resetCache();
 
-    imgWhite.src = '1.jpg';
+    imgWhite.src = '';
     imgWhiteReady = false;
-    imgWhite.onload = function() {
-      imgWhiteReady = true;
-      resize();
-    };
     imgBlack.src = '';
     imgBlackReady = false;
 
@@ -506,18 +502,10 @@
     setStatus('分辨率 ' + SAMPLE_W);
   }, { passive: false });
 
-  imgWhite.onload = function() {
-    imgWhiteReady = true;
-    resize();
-    setStatus('就绪 - 点击开始播放');
-  };
-  imgWhite.src = '1.jpg';
-
   video.addEventListener('loadedmetadata', function() {
     videoReady = true;
     videoDuration = video.duration;
-    if (imgWhiteReady) setStatus('就绪 - 点击开始播放');
-    else setStatus('视频加载完成，等待图片...');
+    setStatus('视频就绪 - 请上传图片');
   });
 
   video.addEventListener('ended', function() {
