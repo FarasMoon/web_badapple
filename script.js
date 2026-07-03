@@ -41,7 +41,6 @@
   var hintTimer = null;
 
   var blockMode = false;
-  var BLOCK_SIZE = 4;
 
   function setStatus(msg) {
     statusEl.textContent = msg;
@@ -101,18 +100,6 @@
     ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
   }
 
-  function isUniform(buf, cols, rows, c0, r0, c1, r1, threshold) {
-    if (threshold === undefined) threshold = 128;
-    var first = buf[r0 * cols + c0];
-    var type = first > threshold;
-    for (var r = r0; r < r1; r++) {
-      for (var c = c0; c < c1; c++) {
-        if ((buf[r * cols + c] > threshold) !== type) return false;
-      }
-    }
-    return true;
-  }
-
   function drawBlocks(buf, cols, rows, dw, dh) {
     var bgColor = bgMode === 'dark' ? '#000' : '#fff';
 
@@ -125,36 +112,52 @@
     var cellW = dw / cols;
     var cellH = dh / rows;
 
-    var bs = BLOCK_SIZE;
-    var r = 0;
-    while (r < rows) {
-      var c = 0;
-      while (c < cols) {
-        var rr = Math.min(bs, rows - r);
-        var cc = Math.min(bs, cols - c);
+    var total = cols * rows;
+    var visited = new Uint8Array(total);
 
-        if (isUniform(buf, cols, rows, c, r, c + cc, r + rr, 128)) {
-          var val = buf[r * cols + c];
-          if (val > 128 && imgWhiteReady) {
-            drawBlock(c, r, cc, rr, imgWhite, cellW, cellH, startX, startY);
-          } else if (val <= 128 && imgBlackReady) {
-            drawBlock(c, r, cc, rr, imgBlack, cellW, cellH, startX, startY);
-          }
-        } else {
-          for (var i = r; i < r + rr; i++) {
-            for (var j = c; j < c + cc; j++) {
-              var v = buf[i * cols + j];
-              if (v > 128 && imgWhiteReady) {
-                drawTile(j, i, imgWhite, cellW, cellH, startX, startY);
-              } else if (v <= 128 && imgBlackReady) {
-                drawTile(j, i, imgBlack, cellW, cellH, startX, startY);
-              }
+    function at(r, c) { return buf[r * cols + c]; }
+    function mark(r0, c0, r1, c1) {
+      for (var i = r0; i < r1; i++)
+        for (var j = c0; j < c1; j++)
+          visited[i * cols + j] = 1;
+    }
+
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        if (visited[r * cols + c]) continue;
+
+        var val = at(r, c);
+        var isWhite = val > 128;
+        var maxW = 1;
+        while (c + maxW < cols && !visited[r * cols + c + maxW] && (at(r, c + maxW) > 128) === isWhite) {
+          maxW++;
+        }
+
+        var maxH = 1;
+        for (var rr = r + 1; rr < rows; rr++) {
+          var canExpand = true;
+          for (var cc = c; cc < c + maxW; cc++) {
+            if (visited[rr * cols + cc] || (at(rr, cc) > 128) !== isWhite) {
+              canExpand = false;
+              break;
             }
           }
+          if (!canExpand) break;
+          maxH++;
         }
-        c += cc;
+
+        var img = null;
+        if (isWhite && imgWhiteReady) img = imgWhite;
+        else if (!isWhite && imgBlackReady) img = imgBlack;
+
+        if (img && (maxW > 1 || maxH > 1)) {
+          drawBlock(c, r, maxW, maxH, img, cellW, cellH, startX, startY);
+        } else if (img) {
+          drawTile(c, r, img, cellW, cellH, startX, startY);
+        }
+
+        mark(r, c, r + maxH, c + maxW);
       }
-      r += rr;
     }
   }
 
@@ -266,11 +269,9 @@
   function updateBlockUI() {
     if (blockMode) {
       btnBlock.classList.add('on');
-      btnBlock.textContent = '整图模式 - ' + BLOCK_SIZE + 'x' + BLOCK_SIZE;
-      setStatus('整图模式 ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
+      setStatus('整图模式');
     } else {
       btnBlock.classList.remove('on');
-      btnBlock.textContent = '整图模式';
     }
   }
 
@@ -298,12 +299,10 @@
 
   btnBlock.addEventListener('click', function() {
     blockMode = !blockMode;
-    resetCache();
-
     updateBlockUI();
 
     if (blockMode) {
-      showHint('滚轮调节块大小');
+      showHint('滚轮调节分辨率');
     } else {
       showHint('滚轮调节分辨率');
     }
@@ -325,10 +324,8 @@
 
     SAMPLE_W = 40;
     sampleH = 0;
-    BLOCK_SIZE = 4;
     blockMode = false;
     btnBlock.classList.remove('on');
-    btnBlock.textContent = '整图模式';
     resetCache();
 
     imgWhite.src = '1.jpg';
@@ -381,28 +378,16 @@
     e.preventDefault();
     if (!playing) return;
 
-    if (blockMode) {
-      var sizes = [2, 4, 8, 16];
-      var idx = sizes.indexOf(BLOCK_SIZE);
-      var d = e.deltaY > 0 ? 1 : -1;
-      idx = Math.max(0, Math.min(sizes.length - 1, idx + d));
-      BLOCK_SIZE = sizes[idx];
-      resetCache();
-      showHint('块大小: ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
-      setStatus('整图模式 ' + BLOCK_SIZE + 'x' + BLOCK_SIZE);
-      btnBlock.textContent = '整图模式 - ' + BLOCK_SIZE + 'x' + BLOCK_SIZE;
-    } else {
-      var delta = e.deltaY > 0 ? -4 : 4;
-      SAMPLE_W = Math.max(8, Math.min(120, SAMPLE_W + delta));
-      resetCache();
+    var delta = e.deltaY > 0 ? -4 : 4;
+    SAMPLE_W = Math.max(8, Math.min(120, SAMPLE_W + delta));
+    resetCache();
 
-      sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
-      if (sampleH < 1) sampleH = 1;
-      buildCache(SAMPLE_W, sampleH);
+    sampleH = Math.round(SAMPLE_W * (video.videoHeight / video.videoWidth));
+    if (sampleH < 1) sampleH = 1;
+    buildCache(SAMPLE_W, sampleH);
 
-      showHint('分辨率 ' + SAMPLE_W);
-      setStatus('分辨率 ' + SAMPLE_W);
-    }
+    showHint('分辨率 ' + SAMPLE_W);
+    setStatus('分辨率 ' + SAMPLE_W);
   }, { passive: false });
 
   imgWhite.onload = function() {
