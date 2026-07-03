@@ -29,6 +29,15 @@
 <input type="file" id="file-input2" accept="image/*" style="display:none">
 <video id="v" src="badapple.mp4" playsinline style="display:none"></video>
 
+<div class="crop-overlay" id="crop-overlay">
+  <canvas id="crop-canvas"></canvas>
+  <div class="crop-hint">拖动移动 / 滚轮缩放</div>
+  <div class="crop-btns">
+    <button class="small-btn" id="crop-cancel">取消</button>
+    <button class="small-btn on" id="crop-confirm">确认</button>
+  </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>

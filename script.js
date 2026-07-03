@@ -14,6 +14,11 @@
   var statusEl = document.getElementById('status');
   var hintEl = document.getElementById('hint');
   var video = document.getElementById('v');
+  var cropOverlay = document.getElementById('crop-overlay');
+  var cropCanvas = document.getElementById('crop-canvas');
+  var cropCtx = cropCanvas.getContext('2d');
+  var cropCancel = document.getElementById('crop-cancel');
+  var cropConfirm = document.getElementById('crop-confirm');
 
   var imgWhite = new Image();
   var imgBlack = new Image();
@@ -343,14 +348,126 @@
     setStatus('已恢复默认 - 点击开始播放');
   });
 
-  function loadImageFromFile(file, targetImg, setReady) {
+  function startCrop(file, targetImg, setReady, label) {
     var reader = new FileReader();
     reader.onload = function(ev) {
-      targetImg.onload = function() {
-        setReady();
-        resize();
+      var srcImg = new Image();
+      srcImg.onload = function() {
+        var maxW = window.innerWidth * 0.9;
+        var maxH = window.innerHeight * 0.7;
+        var scale = Math.min(maxW / srcImg.width, maxH / srcImg.height, 1);
+        var cw = Math.round(srcImg.width * scale);
+        var ch = Math.round(srcImg.height * scale);
+        cropCanvas.width = cw;
+        cropCanvas.height = ch;
+        cropCtx.drawImage(srcImg, 0, 0, cw, ch);
+
+        var sqSize = Math.min(cw, ch);
+        var cx = (cw - sqSize) / 2;
+        var cy = (ch - sqSize) / 2;
+        var dragging = false, dragX = 0, dragY = 0;
+
+        function drawFrame() {
+          cropCtx.drawImage(srcImg, 0, 0, cw, ch);
+          cropCtx.fillStyle = 'rgba(0,0,0,0.5)';
+          cropCtx.fillRect(0, 0, cw, cy);
+          cropCtx.fillRect(0, cy + sqSize, cw, ch - cy - sqSize);
+          cropCtx.fillRect(0, cy, cx, sqSize);
+          cropCtx.fillRect(cx + sqSize, cy, cw - cx - sqSize, sqSize);
+          cropCtx.strokeStyle = '#fff';
+          cropCtx.lineWidth = 2;
+          cropCtx.strokeRect(cx, cy, sqSize, sqSize);
+        }
+
+        function constrain() {
+          cx = Math.max(0, Math.min(cw - sqSize, cx));
+          cy = Math.max(0, Math.min(ch - sqSize, cy));
+          if (sqSize < 10) sqSize = 10;
+          if (sqSize > Math.min(cw, ch)) sqSize = Math.min(cw, ch);
+          cx = Math.min(cx, cw - sqSize);
+          cy = Math.min(cy, ch - sqSize);
+        }
+
+        drawFrame();
+        cropOverlay.classList.add('show');
+
+        function onDown(e) {
+          e.preventDefault();
+          var rect = cropCanvas.getBoundingClientRect();
+          var mx = (e.clientX || e.touches[0].clientX) - rect.left;
+          var my = (e.clientY || e.touches[0].clientY) - rect.top;
+          if (mx >= cx && mx <= cx + sqSize && my >= cy && my <= cy + sqSize) {
+            dragging = true;
+            dragX = mx - cx;
+            dragY = my - cy;
+          }
+        }
+        function onMove(e) {
+          if (!dragging) return;
+          e.preventDefault();
+          var rect = cropCanvas.getBoundingClientRect();
+          cx = (e.clientX || e.touches[0].clientX) - rect.left - dragX;
+          cy = (e.clientY || e.touches[0].clientY) - rect.top - dragY;
+          constrain();
+          drawFrame();
+        }
+        function onUp() { dragging = false; }
+        function onWheel(e) {
+          e.preventDefault();
+          var d = e.deltaY > 0 ? -10 : 10;
+          sqSize = Math.max(10, Math.min(Math.min(cw, ch), sqSize + d));
+          constrain();
+          drawFrame();
+        }
+
+        cropCanvas.addEventListener('mousedown', onDown);
+        cropCanvas.addEventListener('mousemove', onMove);
+        cropCanvas.addEventListener('mouseup', onUp);
+        cropCanvas.addEventListener('mouseleave', onUp);
+        cropCanvas.addEventListener('touchstart', onDown, { passive: false });
+        cropCanvas.addEventListener('touchmove', onMove, { passive: false });
+        cropCanvas.addEventListener('touchend', onUp);
+        cropCanvas.addEventListener('wheel', onWheel, { passive: false });
+
+        function cleanup() {
+          cropOverlay.classList.remove('show');
+          cropCanvas.removeEventListener('mousedown', onDown);
+          cropCanvas.removeEventListener('mousemove', onMove);
+          cropCanvas.removeEventListener('mouseup', onUp);
+          cropCanvas.removeEventListener('mouseleave', onUp);
+          cropCanvas.removeEventListener('touchstart', onDown);
+          cropCanvas.removeEventListener('touchmove', onMove);
+          cropCanvas.removeEventListener('touchend', onUp);
+          cropCanvas.removeEventListener('wheel', onWheel);
+        }
+
+        function doCrop() {
+          var offC = document.createElement('canvas');
+          offC.width = sqSize; offC.height = sqSize;
+          var offCtx2 = offC.getContext('2d');
+          offCtx2.drawImage(srcImg, cx / scale, cy / scale, sqSize / scale, sqSize / scale, 0, 0, sqSize, sqSize);
+          var dataUrl = offC.toDataURL('image/jpeg', 0.9);
+
+          targetImg.onload = function() {
+            setReady();
+            resize();
+          };
+          targetImg.src = dataUrl;
+          setStatus(label + '已更换');
+          cleanup();
+        }
+
+        cropConfirm.onclick = doCrop;
+        cropCancel.onclick = function() { cleanup(); };
+
+        cropConfirm.replaceWith(cropConfirm.cloneNode(true));
+        cropCancel.replaceWith(cropCancel.cloneNode(true));
+        cropConfirm = document.getElementById('crop-confirm');
+        cropCancel = document.getElementById('crop-cancel');
+        cropConfirm.onclick = doCrop;
+        cropCancel.onclick = function() { cleanup(); };
       };
-      targetImg.src = ev.target.result;
+      srcImg.src = ev.target.result;
     };
     reader.readAsDataURL(file);
     resetCache();
@@ -359,19 +476,15 @@
   fileInput.addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
-    loadImageFromFile(file, imgWhite, function() {
-      imgWhiteReady = true;
-      setStatus('白区图已更换');
-    });
+    startCrop(file, imgWhite, function() { imgWhiteReady = true; }, '白区图');
+    fileInput.value = '';
   });
 
   fileInput2.addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
-    loadImageFromFile(file, imgBlack, function() {
-      imgBlackReady = true;
-      setStatus('黑区图已更换');
-    });
+    startCrop(file, imgBlack, function() { imgBlackReady = true; }, '黑区图');
+    fileInput2.value = '';
   });
 
   canvas.addEventListener('wheel', function(e) {
